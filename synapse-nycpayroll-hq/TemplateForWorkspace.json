@@ -1,0 +1,160 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"workspaceName": {
+			"type": "string",
+			"metadata": "Workspace name",
+			"defaultValue": "synapse-nycpayroll-hq"
+		},
+		"ls_sqldb_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'ls_sqldb'"
+		},
+		"synapse-nycpayroll-hq-WorkspaceDefaultSqlServer_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'synapse-nycpayroll-hq-WorkspaceDefaultSqlServer'",
+			"defaultValue": "Integrated Security=False;Encrypt=True;Connection Timeout=30;Data Source=tcp:synapse-nycpayroll-hq.sql.azuresynapse.net,1433;Initial Catalog=@{linkedService().DBName}"
+		},
+		"synapse-nycpayroll-hq-WorkspaceDefaultStorage_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://syedqnycstorage.dfs.core.windows.net"
+		}
+	},
+	"variables": {
+		"workspaceId": "[concat('Microsoft.Synapse/workspaces/', parameters('workspaceName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('workspaceName'), '/ls_sqldb')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": [],
+				"type": "AzureSqlDatabase",
+				"typeProperties": {
+					"connectionString": "[parameters('ls_sqldb_connectionString')]"
+				},
+				"connectVia": {
+					"referenceName": "AutoResolveIntegrationRuntime",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/synapse-nycpayroll-hq-WorkspaceDefaultSqlServer')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"parameters": {
+					"DBName": {
+						"type": "String"
+					}
+				},
+				"annotations": [],
+				"type": "AzureSqlDW",
+				"typeProperties": {
+					"connectionString": "[parameters('synapse-nycpayroll-hq-WorkspaceDefaultSqlServer_connectionString')]"
+				},
+				"connectVia": {
+					"referenceName": "AutoResolveIntegrationRuntime",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/synapse-nycpayroll-hq-WorkspaceDefaultStorage')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobFS",
+				"typeProperties": {
+					"url": "[parameters('synapse-nycpayroll-hq-WorkspaceDefaultStorage_properties_typeProperties_url')]"
+				},
+				"connectVia": {
+					"referenceName": "AutoResolveIntegrationRuntime",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/AutoResolveIntegrationRuntime')]",
+			"type": "Microsoft.Synapse/workspaces/integrationRuntimes",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"type": "Managed",
+				"typeProperties": {
+					"computeProperties": {
+						"location": "AutoResolve",
+						"dataFlowProperties": {
+							"computeType": "General",
+							"coreCount": 8,
+							"timeToLive": 0
+						}
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/WorkspaceSystemIdentity')]",
+			"type": "Microsoft.Synapse/workspaces/credentials",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"type": "ManagedIdentity",
+				"typeProperties": {}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/SQL script 3')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "\n\nCREATE EXTERNAL DATA SOURCE \"synapse-filesystem-hq_syedqnycstorage_dfs_core_windows_net\"\nWITH\n  ( LOCATION = 'adls://syed-q_syedqnycstorage.dfs.core.windows.net/synapse-filesystem-hq' \n\n  );\n\n\n\nCREATE EXTERNAL DATA SOURCE \"adlsnycpayroll-syed-q_syedqnycstorage_dfs_core_windows_net\"\nWITH\n  ( LOCATION = 'adls://syed-q_syedqnycstorage.dfs.core.windows.net/adlsnycpayroll-syed-q' \n\n  );\n\n\n\nCREATE EXTERNAL TABLE [dbo].[NYC_Payroll_Summary](\n[FiscalYear] [int] NULL,\n[AgencyName] [varchar](50) NULL,\n[TotalPaid] [float] NULL\n)\nWITH (\nLOCATION = '/dirstaging/',\nDATA_SOURCE = [adlsnycpayroll-syed-q_syedqnycstorage_dfs_core_windows_net],\nFILE_FORMAT = [SynapseDelimitedTextFormat]\n)\nGO\n\n\n\n\nCREATE EXTERNAL TABLE NYC_Payroll_EMP_MD(\n[EmployeeID] [varchar](10) NULL,\n[LastName] [varchar](20) NULL,\n[FirstName] [varchar](20) NULL\n)\nWITH (\nLOCATION = '/employee/',\nDATA_SOURCE = [synapse-filesystem-hq_syedqnycstorage_dfs_core_windows_net],\nFILE_FORMAT = [SynapseDelimitedTextFormat]\n)\n\nGO\n\n\nCREATE EXTERNAL TABLE [NYC_Payroll_TITLE_MD](\n[TitleCode] [varchar](10) NULL,\n[TitleDescription] [varchar](100) NULL\n)\nWITH (\nLOCATION = '/employee/',\nDATA_SOURCE = [synapse-filesystem-hq_syedqnycstorage_dfs_core_windows_net],\nFILE_FORMAT = [SynapseDelimitedTextFormat]\n)\nGO\n\nCREATE EXTERNAL TABLE [NYC_Payroll_AGENCY_MD](\n    [AgencyID] [varchar](10) NULL,\n    [AgencyName] [varchar](50) NULL\n)\nWITH (\nLOCATION = '/employee/',\nDATA_SOURCE = [synapse-filesystem-hq_syedqnycstorage_dfs_core_windows_net],\nFILE_FORMAT = [SynapseDelimitedTextFormat]\n)\nGO\n\n\nCREATE EXTERNAL TABLE [NYC_Payroll_Data_2020](\n    [FiscalYear] [int] NULL,\n    [PayrollNumber] [int] NULL,\n    [AgencyID] [varchar](10) NULL,\n    [AgencyName] [varchar](50) NULL,\n    [EmployeeID] [varchar](10) NULL,\n    [LastName] [varchar](20) NULL,\n    [FirstName] [varchar](20) NULL,\n    [AgencyStartDate] [date] NULL,\n    [WorkLocationBorough] [varchar](50) NULL,\n    [TitleCode] [varchar](10) NULL,\n    [TitleDescription] [varchar](100) NULL,\n    [LeaveStatusasofJune30] [varchar](50) NULL,\n    [BaseSalary] [float] NULL,\n    [PayBasis] [varchar](50) NULL,\n    [RegularHours] [float] NULL,\n    [RegularGrossPaid] [float] NULL,\n    [OTHours] [float] NULL,\n    [TotalOTPaid] [float] NULL,\n    [TotalOtherPay] [float] NULL\n)\nWITH (\nLOCATION = '/payroll_history/',\nDATA_SOURCE = [synapse-filesystem-hq_syedqnycstorage_dfs_core_windows_net],\nFILE_FORMAT = [SynapseDelimitedTextFormat]\n)\nGO\nCREATE EXTERNAL TABLE [NYC_Payroll_Data_2021](\n    [FiscalYear] [int] NULL,\n    [PayrollNumber] [int] NULL,\n    [AgencyID] [varchar](10) NULL,\n    [AgencyName] [varchar](50) NULL,\n    [EmployeeID] [varchar](10) NULL,\n    [LastName] [varchar](20) NULL,\n    [FirstName] [varchar](20) NULL,\n    [AgencyStartDate] [date] NULL,\n    [WorkLocationBorough] [varchar](50) NULL,\n    [TitleCode] [varchar](10) NULL,\n    [TitleDescription] [varchar](100) NULL,\n    [LeaveStatusasofJune30] [varchar](50) NULL,\n    [BaseSalary] [float] NULL,\n    [PayBasis] [varchar](50) NULL,\n    [RegularHours] [float] NULL,\n    [RegularGrossPaid] [float] NULL,\n    [OTHours] [float] NULL,\n    [TotalOTPaid] [float] NULL,\n    [TotalOtherPay] [float] NULL\n)\nWITH (\nLOCATION = '/payroll/',\nDATA_SOURCE = [synapse-filesystem-hq_syedqnycstorage_dfs_core_windows_net],\nFILE_FORMAT = [SynapseDelimitedTextFormat]\n)\nGO\n\n\n",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "udacity",
+						"poolName": "Built-in"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/create_payroll_summary_table')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "CREATE EXTERNAL DATA SOURCE \"adlsnycpayroll-syed-q_syedqnycstorage_dfs_core_windows_net\"\nWITH\n  ( LOCATION = 'adls://syed-q_syedqnycstorage.dfs.core.windows.net/adlsnycpayroll-syed-q' \n\n  );\n\n\n\nCREATE EXTERNAL TABLE [dbo].[NYC_Payroll_Summary](\n[FiscalYear] [int] NULL,\n[AgencyName] [varchar](50) NULL,\n[TotalPaid] [float] NULL\n)\nWITH (\nLOCATION = '/dirstaging/',\nDATA_SOURCE = [adlsnycpayroll-syed-q_syedqnycstorage_dfs_core_windows_net],\nFILE_FORMAT = [SynapseDelimitedTextFormat]\n)\nGO\n",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "master",
+						"poolName": "Built-in"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		}
+	]
+}
