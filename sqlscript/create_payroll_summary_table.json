@@ -2,12 +2,12 @@
 	"name": "create_payroll_summary_table",
 	"properties": {
 		"content": {
-			"query": "CREATE EXTERNAL DATA SOURCE \"adlsnycpayroll-syed-q_syedqnycstorage_dfs_core_windows_net\"\nWITH\n  ( LOCATION = 'adls://syed-q_syedqnycstorage.dfs.core.windows.net/adlsnycpayroll-syed-q' \n\n  );\n\n\n\nCREATE EXTERNAL TABLE [dbo].[NYC_Payroll_Summary](\n[FiscalYear] [int] NULL,\n[AgencyName] [varchar](50) NULL,\n[TotalPaid] [float] NULL\n)\nWITH (\nLOCATION = '/dirstaging/',\nDATA_SOURCE = [adlsnycpayroll-syed-q_syedqnycstorage_dfs_core_windows_net],\nFILE_FORMAT = [SynapseDelimitedTextFormat]\n)\nGO\n",
+			"query": "CREATE EXTERNAL DATA SOURCE \"adlsnycpayroll-syed-q_nycparollsa_dfs_core_windows_net\"\nWITH\n  ( LOCATION = 'abfss://nycparollsa.dfs.core.windows.net/adlsnycpayroll-syed-q' \n\n  );\n\n\n\nCREATE EXTERNAL TABLE [dbo].[NYC_Payroll_Summary](\n[FiscalYear] [int] NULL,\n[AgencyName] [varchar](50) NULL,\n[TotalPaid] [float] NULL\n)\nWITH (\nLOCATION = '/dirstaging/',\nDATA_SOURCE = [adlsnycpayroll-syed-q_nycparollsa_dfs_core_windows_net],\nFILE_FORMAT = [SynapseDelimitedTextFormat]\n)\nGO\n",
 			"metadata": {
 				"language": "sql"
 			},
 			"currentConnection": {
-				"databaseName": "master",
+				"databaseName": "UDACITY",
 				"poolName": "Built-in"
 			},
 			"resultLimit": 5000
