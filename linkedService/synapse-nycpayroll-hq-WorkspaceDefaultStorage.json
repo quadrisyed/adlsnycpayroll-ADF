@@ -3,7 +3,7 @@
 	"type": "Microsoft.Synapse/workspaces/linkedservices",
 	"properties": {
 		"typeProperties": {
-			"url": "https://syedqnycstorage.dfs.core.windows.net"
+			"url": "https://synapsenycpayrollsa.dfs.core.windows.net"
 		},
 		"type": "AzureBlobFS",
 		"connectVia": {
